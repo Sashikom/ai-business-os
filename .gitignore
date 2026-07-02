@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+*.env
+venv/
+
+# Node
+node_modules/
+dist/
+npm-debug.log*
+
+# Docker
+.docker/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Backups
+backups/
+*.sql.gz
+
+# Logs
+*.log
+logs/
