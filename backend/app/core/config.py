@@ -14,7 +14,8 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     SUPER_ADMIN_EMAIL: str = "a.v.medvedev1985@gmail.com"
     GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_MODEL: str = "qwen/qwen3.8-27b" 
+    GROQ_BASE_URL: str = "https://api.groq.com"
     ALLOWED_ORIGINS: List[str] = ["*"]
 
     class Config:

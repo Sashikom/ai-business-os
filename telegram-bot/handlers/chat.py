@@ -34,33 +34,12 @@ async def cmd_chat(message: Message):
 
 @router.message(F.text == "AI Чат")
 async def btn_ai_chat(message: Message):
-    """Кнопка 'AI Чат'."""
-    result = await api_client.get_me(telegram_id=message.from_user.id)
-    if not result or not result.get("has_access"):
-        await message.answer(
-            "Доступ истёк! Активируйте токен командой /token",
-            reply_markup=expired_menu_kb(),
-        )
-        return
-
     _user_modules[message.from_user.id] = "chat"
-    await message.answer(
-        "Режим AI Чат включён!\n\n"
-        "Пишите любые вопросы — AI поможет.",
-    )
+    await message.answer("Режим AI Чат включён!\n\nПишите любые вопросы — AI поможет.")
 
 
 @router.message(F.text == "Исследование рынка")
 async def btn_market(message: Message):
-    """Кнопка 'Исследование рынка'."""
-    result = await api_client.get_me(telegram_id=message.from_user.id)
-    if not result or not result.get("has_access"):
-        await message.answer(
-            "Доступ истёк! Активируйте токен командой /token",
-            reply_markup=expired_menu_kb(),
-        )
-        return
-
     _user_modules[message.from_user.id] = "market_research"
     await message.answer(
         "Режим 'Исследование рынка' включён!\n\n"
@@ -71,15 +50,6 @@ async def btn_market(message: Message):
 
 @router.message(F.text == "Контент")
 async def btn_content(message: Message):
-    """Кнопка 'Контент'."""
-    result = await api_client.get_me(telegram_id=message.from_user.id)
-    if not result or not result.get("has_access"):
-        await message.answer(
-            "Доступ истёк! Активируйте токен командой /token",
-            reply_markup=expired_menu_kb(),
-        )
-        return
-
     _user_modules[message.from_user.id] = "content"
     await message.answer(
         "Режим 'Контент' включён!\n\n"
@@ -90,15 +60,6 @@ async def btn_content(message: Message):
 
 @router.message(F.text == "Воронки продаж")
 async def btn_funnel(message: Message):
-    """Кнопка 'Воронки продаж'."""
-    result = await api_client.get_me(telegram_id=message.from_user.id)
-    if not result or not result.get("has_access"):
-        await message.answer(
-            "Доступ истёк! Активируйте токен командой /token",
-            reply_markup=expired_menu_kb(),
-        )
-        return
-
     _user_modules[message.from_user.id] = "funnel"
     await message.answer(
         "Режим 'Воронки продаж' включён!\n\n"
@@ -109,7 +70,6 @@ async def btn_funnel(message: Message):
 
 @router.message(F.text == "Мой профиль")
 async def btn_profile(message: Message):
-    """Кнопка 'Мой профиль'."""
     result = await api_client.get_me(telegram_id=message.from_user.id)
     if not result:
         await message.answer("Ошибка получения профиля.")
@@ -140,18 +100,25 @@ async def btn_profile(message: Message):
 
 @router.message(F.text == "Ввести токен")
 async def btn_enter_token(message: Message):
-    """Кнопка 'Ввести токен'."""
     await message.answer(
         "Введите токен доступа в формате:\n"
         "<code>AIBOS-XXXXXXXX-XXXXXXXX</code>",
     )
 
 
-# Обработка обычных текстовых сообщений — отправляем в AI
+# ==========================================================
+# КРИТИЧЕСКИ ВАЖНО: Обработка обычного текста
+# ==========================================================
 @router.message(F.text)
-async def handle_text(message: Message):
-    """Обработка текстовых сообщений — отправка в AI."""
-    # Проверяем доступ
+async def handle_message(message: Message):
+    """Обработка обычных сообщений. Команды с / игнорируются."""
+    
+    # ЖЕСТКИЙ БЛОК: Если текст начинается с '/', мы сразу выходим.
+    # Этим займется admin.py (команда /panel) или другой роутер.
+    if message.text.startswith('/'):
+        return  # <--- ЭТО ГАРАНТИРОВАННО СПАСАЕТ ОТ ОШИБКИ
+
+    # 1. Проверяем доступ
     result = await api_client.get_me(telegram_id=message.from_user.id)
     if not result or not result.get("has_access"):
         await message.answer(
@@ -160,10 +127,10 @@ async def handle_text(message: Message):
         )
         return
 
-    # Определяем модуль (по умолчанию chat)
+    # 2. Определяем модуль
     module = _user_modules.get(message.from_user.id, "chat")
 
-    # Отправляем в AI
+    # 3. Отправляем в AI
     await message.answer("Думаю...")
 
     ai_result = await api_client.ai_chat(

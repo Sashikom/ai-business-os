@@ -11,7 +11,7 @@ class APIClient:
         self.base_url = BACKEND_URL
 
     async def _request(self, method: str, path: str, **kwargs):
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=120.0) as client:
             url = f"{self.base_url}{path}"
             try:
                 if method == "GET":

@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -70,7 +70,7 @@ async def ai_chat(req: ChatRequest):
 
     try:
         completion = _groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="qwen-2.5-32b",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": req.message},

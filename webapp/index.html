@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <title>AIBOS - Marketing AI</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+            padding: 20px; 
+            background: var(--tg-theme-bg-color, #fff); 
+            color: var(--tg-theme-text-color, #000);
+            margin: 0;
+        }
+        .card { 
+            background: var(--tg-theme-secondary-bg-color, #f5f5f5); 
+            padding: 15px; 
+            border-radius: 12px; 
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .btn { 
+            background: #3390ec; 
+            color: white; 
+            border: none; 
+            padding: 15px; 
+            width: 100%; 
+            border-radius: 10px; 
+            font-size: 16px; 
+            font-weight: bold; 
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .btn:disabled { background: #ccc; }
+        .pay-btn { background: #4CAF50; }
+        h2 { margin-top: 0; }
+        #result { 
+            white-space: pre-wrap; 
+            background: #e8f4f8; 
+            padding: 12px; 
+            border-radius: 8px; 
+            margin-top: 10px; 
+            display: none;
+            font-size: 14px;
+        }
+        .stat-row { display: flex; justify-content: space-between; margin: 8px 0; }
+        .stat-label { color: #666; }
+        .stat-value { font-weight: bold; color: #3390ec; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>👋 Привет, <span id="userName">Пользователь</span>!</h2>
+        <div class="stat-row">
+            <span class="stat-label">Тариф:</span>
+            <span class="stat-value" id="planName">Загрузка...</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Осталось дней:</span>
+            <span class="stat-value" id="daysLeft">...</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Генераций:</span>
+            <span class="stat-value" id="creditsLeft">...</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>📝 AI-генерация контента</h3>
+        <input type="text" id="topic" placeholder="О чём написать? (например: продажа сумок)" 
+               style="width: 90%; padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px; font-size: 14px;">
+        <button class="btn" id="genBtn" onclick="generate()">✨ Сгенерировать пост</button>
+        <div id="result"></div>
+    </div>
+
+    <div class="card">
+        <h3>🎯 Быстрые действия</h3>
+        <button class="btn" onclick="openFeature('funnels')">📊 Воронки продаж</button>
+        <button class="btn" onclick="openFeature('research')"> Анализ рынка</button>
+        <button class="btn" onclick="openFeature('leads')">👥 Генерация лидов</button>
+    </div>
+
+    <button class="btn pay-btn" onclick="openBotForPayment()">💳 Пополнить баланс / Продлить</button>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        const user = tg.initDataUnsafe?.user;
+        const userId = user ? String(user.id) : "demo_user_1";
+        if (user) document.getElementById('userName').innerText = user.first_name;
+
+        // ===== ТВОЙ IP УЖЕ ВСТАВЛЕН =====
+           const BACKEND_URL = 'https://8251a3d8634d56.lhr.life';
+
+        async function loadStatus() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/subscription/check`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId })
+                });
+                const data = await response.json();
+                
+                document.getElementById('planName').innerText = data.plan_name || 'Не активен';
+                document.getElementById('daysLeft').innerText = data.days_left || 0;
+                document.getElementById('creditsLeft').innerText = data.active ? 'Безлимит' : '0';
+                
+                if (!data.active) {
+                    document.getElementById('genBtn').disabled = true;
+                    document.getElementById('genBtn').innerText = '❌ Активируйте подписку';
+                }
+            } catch (e) {
+                console.error("Ошибка:", e);
+                document.getElementById('planName').innerText = 'Ошибка подключения';
+            }
+        }
+        loadStatus();
+
+        async function generate() {
+            const topic = document.getElementById('topic').value;
+            if (!topic) {
+                tg.showAlert('Введите тему для генерации!');
+                return;
+            }
+
+            tg.MainButton.showProgress();
+            document.getElementById('genBtn').disabled = true;
+            document.getElementById('genBtn').innerText = '⏳ Генерирую...';
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/content/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic: topic, style: "marketing" })
+                });
+                const data = await response.json();
+                
+                const resultDiv = document.getElementById('result');
+                resultDiv.style.display = 'block';
+                resultDiv.innerText = data.data || data.reply || "Готово!";
+                
+                tg.showPopup({
+                    title: '✅ Готово!',
+                    message: 'Контент сгенерирован!',
+                    buttons: [{type: 'ok'}]
+                });
+            } catch (e) {
+                tg.showAlert("Ошибка соединения с сервером.");
+            } finally {
+                tg.MainButton.hideProgress();
+                document.getElementById('genBtn').disabled = false;
+                document.getElementById('genBtn').innerText = '✨ Сгенерировать пост';
+            }
+        }
+
+        function openFeature(feature) {
+            tg.showPopup({
+                title: '🚧 В разработке',
+                message: `Раздел "${feature}" скоро будет доступен!`,
+                buttons: [{type: 'ok'}]
+            });
+        }
+
+        // ===== ЗАМЕНИ AlexsTestBot НА ИМЯ СВОЕГО БОТА =====
+        function openBotForPayment() {
+            tg.openTelegramLink('https://t.me/AlexsTestBot?start=pay');
+        }
+    </script>
+</body>
+</html>

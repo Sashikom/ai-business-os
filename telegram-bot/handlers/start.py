@@ -1,7 +1,7 @@
 import logging
 import os
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -13,6 +13,14 @@ logger = logging.getLogger(__name__)
 
 ADMIN_TELEGRAM_ID = os.getenv("ADMIN_TELEGRAM_ID", "5236809587")
 
+# ССЫЛКА НА ТВОЮ СОБРАННУЮ АДМИН-ПАНЕЛЬ
+WEB_APP_URL = "https://silver-griffin-5792cb.netlify.app"
+
+# Клавиатура с кнопкой Web App
+web_app_kb = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="🚀 Открыть Админ-панель", web_app=WebAppInfo(url=WEB_APP_URL))]
+])
+
 
 class LinkStates(StatesGroup):
     waiting_for_email = State()
@@ -22,10 +30,8 @@ class TokenStates(StatesGroup):
     waiting_for_token = State()
 
 
-# ВАЖНО: Обработчик "Назад" стоит ПЕРВЫМ!
 @router.message(F.text == "⬅️ Назад")
 async def back_to_menu(message: Message, state: FSMContext):
-    """Возврат в главное меню."""
     await state.clear()
     api = APIClient()
     profile = await api.get_me(str(message.from_user.id))
@@ -37,18 +43,9 @@ async def back_to_menu(message: Message, state: FSMContext):
         days_left = profile.get("days_left", 0)
         
         if is_superuser:
-            text = (
-                f"<b>AI Business OS</b>\n\n"
-                f"Режим: АДМИНИСТРАТОР\n"
-                f"Кредиты: <b>{credits}</b>\n\n"
-                f"Полный доступ без ограничений"
-            )
+            text = f"<b>AI Business OS</b>\n\nРежим: АДМИНИСТРАТОР\nКредиты: <b>{credits}</b>\n\nПолный доступ без ограничений"
         elif has_access:
-            text = (
-                f"<b>AI Business OS</b>\n\n"
-                f"Режим: Активен ({days_left} дн.)\n"
-                f"Кредиты: <b>{credits}</b>"
-            )
+            text = f"<b>AI Business OS</b>\n\nРежим: Активен ({days_left} дн.)\nКредиты: <b>{credits}</b>"
         else:
             text = "<b>⚠️ Доступ ограничен</b>\n\nДля продления: /token"
         
@@ -69,7 +66,6 @@ async def cmd_start(message: Message, state: FSMContext):
     profile = await api.get_me(str(message.from_user.id))
 
     if not profile:
-        # Новый пользователь — просим токен
         text = (
             f"<b>👋 Добро пожаловать в AI Business OS!</b>\n\n"
             f"Для доступа к AI-модулям нужен токен активации.\n\n"
@@ -81,8 +77,8 @@ async def cmd_start(message: Message, state: FSMContext):
             f"/token ВАШ_ТОКЕН"
         )
         await message.answer(text)
+        await message.answer("🌐 <b>Веб-панель управления:</b>", reply_markup=web_app_kb)
         
-        # Уведомляем админа
         try:
             ref_info = f"\nПригласил: ref_{ref_code}" if ref_code else ""
             await message.bot.send_message(
@@ -95,7 +91,6 @@ async def cmd_start(message: Message, state: FSMContext):
         except Exception:
             pass
     else:
-        # Существующий пользователь
         is_superuser = profile.get("is_superuser", False)
         has_access = profile.get("has_access", False)
         days_left = profile.get("days_left", 0)
@@ -103,30 +98,19 @@ async def cmd_start(message: Message, state: FSMContext):
         credits = profile.get("credits_balance", 0)
 
         if is_superuser:
-            text = (
-                f"<b>AI Business OS</b>\n\n"
-                f"Режим: АДМИНИСТРАТОР\n"
-                f"Кредиты: <b>{credits}</b>\n\n"
-                f"Полный доступ без ограничений"
-            )
+            text = f"<b>AI Business OS</b>\n\nРежим: АДМИНИСТРАТОР\nКредиты: <b>{credits}</b>\n\nПолный доступ без ограничений"
             await message.answer(text, reply_markup=main_menu_keyboard(is_linked=True))
+            await message.answer("🌐 <b>Веб-панель управления:</b>", reply_markup=web_app_kb)
+            
         elif has_access:
             if sub == "DEMO":
-                text = (
-                    f"<b>AI Business OS</b>\n\n"
-                    f"Режим: ДЕМО ({days_left} дн. осталось)\n"
-                    f"Кредиты: <b>{credits}</b>\n\n"
-                    f"Для продления: /token"
-                )
+                text = f"<b>AI Business OS</b>\n\nРежим: ДЕМО ({days_left} дн. осталось)\nКредиты: <b>{credits}</b>\n\nДля продления: /token"
             else:
-                text = (
-                    f"<b>AI Business OS</b>\n\n"
-                    f"Режим: Активен ({days_left} дн. осталось)\n"
-                    f"Кредиты: <b>{credits}</b>"
-                )
+                text = f"<b>AI Business OS</b>\n\nРежим: Активен ({days_left} дн. осталось)\nКредиты: <b>{credits}</b>"
             await message.answer(text, reply_markup=main_menu_keyboard(is_linked=True))
+            await message.answer("🌐 <b>Веб-панель управления:</b>", reply_markup=web_app_kb)
+            
         else:
-            # Доступ истёк — просим токен
             text = (
                 f"<b>⚠️ Демо-период закончился!</b>\n\n"
                 f"Для продолжения работы нужен токен.\n\n"
@@ -136,6 +120,7 @@ async def cmd_start(message: Message, state: FSMContext):
                 f"/token ВАШ_ТОКЕН"
             )
             await message.answer(text)
+            await message.answer("🌐 <b>Веб-панель управления:</b>", reply_markup=web_app_kb)
 
 
 @router.message(Command("token"))
@@ -198,7 +183,8 @@ async def cmd_link(message: Message, state: FSMContext):
     if "code" in result:
         await state.set_state(LinkStates.waiting_for_email)
         await state.update_data(email=email, code=result["code"])
-        await message.answer(f"Код привязки: <b>{result['code']}</b>\n\nНажмите кнопку для подтверждения:", reply_markup=back_keyboard("confirm_link"))
+        # ИСПРАВЛЕНО: используем main_menu_keyboard вместо несуществующего back_keyboard
+        await message.answer(f"Код привязки: <b>{result['code']}</b>\n\nНажмите кнопку для подтверждения:", reply_markup=main_menu_keyboard(is_linked=True))
     else:
         await message.answer(f"Ошибка: {result.get('detail', 'Не удалось получить код')}")
 
@@ -214,12 +200,14 @@ async def cmd_balance(message: Message):
     sub = profile.get("subscription_status", "DEMO")
     days = profile.get("days_left", 0)
     has_access = profile.get("has_access", False)
+    
     if is_superuser:
         status = "АДМИНИСТРАТОР"
     elif has_access:
         status = "Активен"
     else:
         status = "Истёк"
+        
     await message.answer(
         f"<b>Ваш баланс</b>\n\n"
         f"Статус: {status}\n"
@@ -248,7 +236,8 @@ async def cb_main_menu(callback: CallbackQuery, state: FSMContext):
             await callback.message.edit_text(text, reply_markup=main_menu_keyboard(is_linked=True))
         else:
             text = "<b>Демо-период закончился!</b>\n\nДля оплаты нажмите кнопку ниже."
-            await callback.message.edit_text(text, reply_markup=expired_keyboard())
+            # ИСПРАВЛЕНО: используем expired_menu_kb вместо expired_keyboard
+            await callback.message.edit_text(text, reply_markup=expired_menu_kb())
     else:
         text = "Аккаунт не найден. Нажмите /start"
         await callback.message.edit_text(text, reply_markup=main_menu_keyboard(is_linked=False))
@@ -263,11 +252,16 @@ async def cb_confirm_link(callback: CallbackQuery, state: FSMContext):
         await state.clear()
         return
     api = APIClient()
-    result = await api.confirm_link(telegram_id=str(callback.from_user.id), telegram_username=callback.from_user.username, telegram_name=callback.from_user.full_name, code=code)
+    result = await api.confirm_link(
+        telegram_id=str(callback.from_user.id), 
+        telegram_username=callback.from_user.username, 
+        telegram_name=callback.from_user.full_name, 
+        code=code
+    )
     if "access_token" in result:
         await callback.message.edit_text("Аккаунт привязан!\n\nТеперь вы можете использовать AI модули!", reply_markup=main_menu_keyboard(is_linked=True))
     else:
-        await callback.message.edit_text(f"Ошибка привязки: {result.get('detail', 'Неизвестная ошибка')}")
+        await callback.message.edit_text(f"Ошибка привязки: {result.get('detail', 'Неизвестная ошибка')}", reply_markup=main_menu_keyboard(is_linked=True))
     await state.clear()
 
 
@@ -276,26 +270,30 @@ async def cb_balance(callback: CallbackQuery):
     api = APIClient()
     profile = await api.get_me(str(callback.from_user.id))
     if not profile:
-        await callback.message.edit_text("Аккаунт не найден", reply_markup=back_keyboard("main_menu"))
+        await callback.message.edit_text("Аккаунт не найден", reply_markup=main_menu_keyboard(is_linked=True))
         return
     is_superuser = profile.get("is_superuser", False)
     sub = profile.get("subscription_status", "DEMO")
     days = profile.get("days_left", 0)
     has_access = profile.get("has_access", False)
+    
     if is_superuser:
         status = "АДМИНИСТРАТОР"
     elif has_access:
         status = "Активен"
     else:
         status = "Истёк"
+        
+    # ИСПРАВЛЕНО: используем main_menu_keyboard вместо back_keyboard
     await callback.message.edit_text(
         f"<b>Баланс</b>\n\nСтатус: {status}\nРежим: {sub}\nДней: {days}\nКредиты: {profile.get('credits_balance', 0)}\nИспользовано: {profile.get('credits_used', 0)}",
-        reply_markup=back_keyboard("main_menu")
+        reply_markup=main_menu_keyboard(is_linked=True)
     )
 
 
 @router.callback_query(F.data == "settings")
 async def cb_settings(callback: CallbackQuery):
+    # ИСПРАВЛЕНО: используем main_menu_keyboard вместо back_keyboard
     await callback.message.edit_text(
         "<b>Настройки</b>\n\n"
         "/token - Активировать токен доступа\n"
@@ -304,5 +302,5 @@ async def cb_settings(callback: CallbackQuery):
         "🎁 Пригласите друга и получите 100 кредитов!\n"
         "Ваша реферальная ссылка:\n"
         f"<code>https://t.me/Sashikom_bot?start=ref_{callback.from_user.id}</code>",
-        reply_markup=back_keyboard("main_menu")
+        reply_markup=main_menu_keyboard(is_linked=True)
     )

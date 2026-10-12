@@ -1,5 +1,5 @@
 from aiogram import Router, F
-from aiogram.types import Message
+from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from aiogram.filters import Command
 
 from api_client import api_client
@@ -17,7 +17,7 @@ def is_admin(telegram_id: int) -> bool:
 async def cmd_gen(message: Message):
     """Команда /gen — генерация токенов (админ)."""
     if not is_admin(message.from_user.id):
-        await message.answer("Эта команда только для администратора.")
+        await message.answer("🚫 Эта команда только для администратора.")
         return
 
     # Парсим параметры: /gen [количество] [дней]
@@ -50,7 +50,7 @@ async def cmd_gen(message: Message):
         return
 
     tokens = result.get("tokens", [])
-    text = f"Сгенерировано токенов: {len(tokens)} (на {days} дней)\n\n"
+    text = f"✅ Сгенерировано токенов: {len(tokens)} (на {days} дней)\n\n"
     for t in tokens:
         text += f"<code>{t}</code>\n"
 
@@ -61,7 +61,7 @@ async def cmd_gen(message: Message):
 async def cmd_tokens(message: Message):
     """Команда /tokens — список токенов (админ)."""
     if not is_admin(message.from_user.id):
-        await message.answer("Эта команда только для администратора.")
+        await message.answer("🚫 Эта команда только для администратора.")
         return
 
     result = await api_client.list_tokens(
@@ -77,7 +77,7 @@ async def cmd_tokens(message: Message):
         await message.answer("Токенов пока нет. Используйте /gen для генерации.")
         return
 
-    text = f"Всего токенов: {result.get('count', 0)}\n\n"
+    text = f"🎫 Всего токенов: {result.get('count', 0)}\n\n"
     for t in tokens[:20]:  # Показываем первые 20
         status = "ИСПОЛЬЗОВАН" if t.get("is_used") else "СВОБОДЕН"
         text += f"<code>{t.get('token')}</code> — {status}"
@@ -95,7 +95,7 @@ async def cmd_tokens(message: Message):
 async def cmd_users(message: Message):
     """Команда /users — список пользователей (админ)."""
     if not is_admin(message.from_user.id):
-        await message.answer("Эта команда только для администратора.")
+        await message.answer("🚫 Эта команда только для администратора.")
         return
 
     result = await api_client.list_users(
@@ -111,7 +111,7 @@ async def cmd_users(message: Message):
         await message.answer("Пользователей пока нет.")
         return
 
-    text = f"Всего пользователей: {result.get('count', 0)}\n\n"
+    text = f"👥 Всего пользователей: {result.get('count', 0)}\n\n"
     for u in users[:20]:  # Показываем первые 20
         access = "ДА" if u.get("has_access") else "НЕТ"
         text += (
@@ -132,7 +132,7 @@ async def cmd_users(message: Message):
 async def cmd_block(message: Message):
     """Команда /block — заблокировать пользователя (админ)."""
     if not is_admin(message.from_user.id):
-        await message.answer("Эта команда только для администратора.")
+        await message.answer("🚫 Эта команда только для администратора.")
         return
 
     parts = message.text.strip().split()
@@ -155,4 +155,26 @@ async def cmd_block(message: Message):
         await message.answer("Ошибка блокировки пользователя.")
         return
 
-    await message.answer(f"Пользователь {block_id} заблокирован.")
+    await message.answer(f"✅ Пользователь {block_id} заблокирован.")
+
+
+@router.message(Command("panel"))
+async def cmd_panel(message: Message):
+    """Команда /panel — открыть веб-админку (React Web App)."""
+    if not is_admin(message.from_user.id):
+        await message.answer("🚫 Эта команда только для администратора.")
+        return
+
+    # Ссылка на твою собранную админ-панель на Netlify
+    web_app_url = "https://glistening-salamander-374aa6.netlify.app"
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🚀 Открыть Админ-панель", web_app=WebAppInfo(url=web_app_url))]
+    ])
+
+    await message.answer(
+        "👨‍💼 <b>Веб-панель администратора AIBOS</b>\n\n"
+        "Управляйте токенами, пользователями и смотрите статистику через удобный графический интерфейс.\n"
+        "Нажмите кнопку ниже, чтобы открыть приложение 👇",
+        reply_markup=keyboard
+    )
