@@ -405,4 +405,47 @@ async def increment_requests(telegram_id: int):
     user = next((u for u in users_db if u["telegram_id"] == telegram_id), None)
     if user and user["requests_limit"] != -1:
         user["requests_used"] += 1
-    return {"success": True}   
+    return {"success": True}
+# === ЗАЯВКИ НА ДОСТУП (модерация с телефона) ===
+PLANS = {
+    "BASIC": 100,
+    "PRO": 1000,
+    "ENTERPRISE": -1,
+}
+
+@app.post("/api/v1/bot/request-access")
+async def request_access(telegram_id: int, username: str):
+    """Создаёт заявку на доступ (статус pending)"""
+    user = next((u for u in users_db if u["telegram_id"] == telegram_id), None)
+    if user and user["status"] == "active":
+        return {"success": False, "message": "Доступ уже открыт"}
+    if not user:
+        users_db.append({
+            "telegram_id": telegram_id,
+            "username": username,
+            "status": "pending",
+            "subscription": "NONE",
+            "requests_limit": 0,
+            "requests_used": 0,
+            "expires_at": "1970-01-01",
+        })
+    else:
+        user["status"] = "pending"
+        user["username"] = username
+    return {"success": True, "message": "Заявка создана"}
+
+@app.post("/api/v1/bot/approve-user")
+async def approve_user(telegram_id: int, plan: str):
+    """Админ одобряет доступ с выбранным тарифом"""
+    from datetime import datetime, timedelta
+    if plan not in PLANS:
+        return {"success": False, "message": "Неизвестный тариф"}
+    user = next((u for u in users_db if u["telegram_id"] == telegram_id), None)
+    if not user:
+        return {"success": False, "message": "Пользователь не найден"}
+    user["status"] = "active"
+    user["subscription"] = plan
+    user["requests_limit"] = PLANS[plan]
+    user["requests_used"] = 0
+    user["expires_at"] = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
+    return {"success": True, "message": f"Тариф {plan} активирован", "expires_at": user["expires_at"]}   
