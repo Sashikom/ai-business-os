@@ -1,12 +1,15 @@
 import os
 import asyncio
 import logging
+from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, F
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 import httpx
+ # ЗАГРУЖАЕМ ПЕРЕМЕННЫЕ ИЗ ФАЙЛА .env ПЕРЕД ИХ ИСПОЛЬЗОВАНИЕМ
+load_dotenv() 
 
 # Настройки
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -46,12 +49,20 @@ def get_back_menu() -> ReplyKeyboardMarkup:
         resize_keyboard=True
     )
 
+def get_subscribe_keyboard() -> InlineKeyboardMarkup:
+    """Клавиатура с кнопками для покупки подписки (при исчерпании лимита)"""
+    # ВАЖНО: Замени 'your_support_username' на реальный юзернейм поддержки!
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="💳 Пополнить баланс", callback_data="add_balance")],
+        [InlineKeyboardButton(text="📋 Мои тарифы", callback_data="show_tariffs")],
+        [InlineKeyboardButton(text="🆘 Поддержка", url="https://t.me/your_support_username")]
+    ])
+
 # === КОМАНДА /START ===
 @dp.message(Command("start"))
 async def cmd_start(message: Message, state: FSMContext):
     await state.clear()
     telegram_id = message.from_user.id
-    username = message.from_user.username or message.from_user.full_name
     
     async with httpx.AsyncClient() as client:
         try:
@@ -83,7 +94,7 @@ async def cmd_start(message: Message, state: FSMContext):
             logger.error(f"Error checking user: {e}")
             await message.answer("⚠️ Ошибка соединения с сервером.")
 
-# === ГЛАВНЫЙ ОБРАБОТЧИК СООБЩЕНИЙ (ИСПРАВЛЕННАЯ СТРОКА ЗДЕСЬ!) ===
+# === ГЛАВНЫЙ ОБРАБОТЧИК СООБЩЕНИЙ ===
 @dp.message(F.text)
 async def handle_message(message: Message, state: FSMContext):
     telegram_id = message.from_user.id
@@ -162,7 +173,12 @@ async def show_profile(message: Message, telegram_id: int):
                 limit_text = f"{data['requests_used']}/{data['requests_limit']}" if data['requests_limit'] != -1 else f"{data['requests_used']}/∞"
                 await message.answer(f"📊 Ваш профиль:\n👤 Имя: {data['username']}\n👑 Тариф: {data['subscription']}\n📈 Запросы: {limit_text}\n📅 Действует до: {data['expires_at']}")
             else:
-                await message.answer("❌ Доступ не активирован. Введите /start")
+                reason = data.get("message", "Доступ не активирован")
+                await message.answer(
+                    f"⚠️ <b>{reason}</b>\n\nДля доступа введите /start или приобретите подписку:",
+                    parse_mode="HTML",
+                    reply_markup=get_subscribe_keyboard()
+                )
         except Exception as e:
             logger.error(f"Error showing profile: {e}")
 
@@ -181,13 +197,29 @@ async def process_ai_request(message: Message, telegram_id: int, text: str, curr
         try:
             # 1. Проверяем лимиты перед запросом
             check = await client.get(f"{API_URL}/bot/check-user", params={"telegram_id": telegram_id})
-            if not check.json().get("authorized"):
+            check_data = check.json()
+            
+            if not check_data.get("authorized"):
                 await state.clear()
                 await thinking_msg.delete()
-                await message.answer("❌ Лимит исчерпан или доступ закрыт. Введите /start", reply_markup=get_main_menu())
-                return
+                
+                # Берём конкретную причину от бэкенда
+                reason = check_data.get("message", "Доступ ограничен")
+                
+                # Формируем продающее сообщение (используем reply_text, чтобы не затенять параметр text)
+                reply_text = f"⚠️ <b>{reason}</b>\n\n"
+                reply_text += "Чтобы продолжить работу с AI-аналитикой, оформите подписку или пополните баланс. "
+                reply_text += "Это займёт всего 1 минуту! ⚡️\n\n"
+                reply_text += "Выберите действие ниже 👇"
+                
+                await message.answer(
+                    reply_text,
+                    parse_mode="HTML",
+                    reply_markup=get_subscribe_keyboard()
+                )
+                return  # ВАЖНО: прерываем выполнение, запрос к AI не отправится!
             
-            # 2. Отправляем запрос в AI
+            # 2. Отправляем запрос в AI (выполнится ТОЛЬКО если authorized == True)
             ai_resp = await client.post(
                 f"{API_URL}/ai/chat",
                 json={"telegram_id": telegram_id, "message": text, "module": mode},
