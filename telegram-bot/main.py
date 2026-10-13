@@ -201,25 +201,15 @@ async def process_ai_request(message: Message, telegram_id: int, text: str, curr
             
             if not check_data.get("authorized"):
                 await state.clear()
-                await thinking_msg.delete()
+                try: await thinking_msg.delete()
+                except: pass
                 
-                # Берём конкретную причину от бэкенда
                 reason = check_data.get("message", "Доступ ограничен")
-                
-                # Формируем продающее сообщение (используем reply_text, чтобы не затенять параметр text)
-                reply_text = f"⚠️ <b>{reason}</b>\n\n"
-                reply_text += "Чтобы продолжить работу с AI-аналитикой, оформите подписку или пополните баланс. "
-                reply_text += "Это займёт всего 1 минуту! ⚡️\n\n"
-                reply_text += "Выберите действие ниже 👇"
-                
-                await message.answer(
-                    reply_text,
-                    parse_mode="HTML",
-                    reply_markup=get_subscribe_keyboard()
-                )
-                return  # ВАЖНО: прерываем выполнение, запрос к AI не отправится!
+                reply_text = f"⚠️ <b>{reason}</b>\n\nЧтобы продолжить работу, оформите подписку. ⚡️\n\nВыберите действие ниже 👇"
+                await message.answer(reply_text, parse_mode="HTML", reply_markup=get_subscribe_keyboard())
+                return
             
-            # 2. Отправляем запрос в AI (выполнится ТОЛЬКО если authorized == True)
+            # 2. Отправляем запрос в AI
             ai_resp = await client.post(
                 f"{API_URL}/ai/chat",
                 json={"telegram_id": telegram_id, "message": text, "module": mode},
@@ -230,9 +220,10 @@ async def process_ai_request(message: Message, telegram_id: int, text: str, curr
             # 3. Увеличиваем счетчик
             await client.post(f"{API_URL}/bot/increment-requests", params={"telegram_id": telegram_id})
             
-            await thinking_msg.delete()
+            try: await thinking_msg.delete()
+            except: pass
             
-            # 4. Отправляем ответ (с разбивкой на части, если длинный)
+            # 4. Отправляем ответ
             response_text = ai_data.get("response", "Не удалось получить ответ.")
             if len(response_text) > 4000:
                 for i in range(0, len(response_text), 4000):
@@ -241,11 +232,13 @@ async def process_ai_request(message: Message, telegram_id: int, text: str, curr
                 await message.answer(response_text, parse_mode="Markdown")
                 
         except httpx.TimeoutException:
-            await thinking_msg.delete()
-            await message.answer("⏱️ Превышено время ожидания. Попробуйте ещё раз.")
+            try: await thinking_msg.delete()
+            except: pass
+            await message.answer("⏱️ Превышено время ожидания.")
         except Exception as e:
             logger.error(f"AI Request Error: {e}")
-            await thinking_msg.delete()
+            try: await thinking_msg.delete()
+            except: pass
             await message.answer("⚠️ Ошибка при обработке запроса.")
 
 # === ЗАПУСК ===
