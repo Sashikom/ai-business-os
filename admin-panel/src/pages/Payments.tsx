@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CreditCard, CheckCircle, Clock, XCircle } from 'lucide-react'
 
-const API_URL = 'http://localhost:8001/api/v1/admin'
+const API_URL = 'http://185.161.69.108:8005/api/v1/admin'
 
 export default function Payments() {
   const [payments, setPayments] = useState<any[]>([])

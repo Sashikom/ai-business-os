@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Ban, CheckCircle, Trash2, Clock } from 'lucide-react'
 
-const API_URL = 'http://localhost:8001/api/v1/admin'
+const API_URL = 'http://185.161.69.108:8005/api/v1/admin'
 
 export default function Users() {
   const [users, setUsers] = useState<any[]>([])

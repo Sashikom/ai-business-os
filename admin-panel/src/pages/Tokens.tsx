@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Plus, Trash2, XCircle, Copy, Check } from 'lucide-react'
 
-const API_URL = 'http://localhost:8001/api/v1/admin'
+const API_URL = 'http://185.161.69.108:8005/api/v1/admin'
 
 export default function Tokens() {
   const [tokens, setTokens] = useState<any[]>([])
