@@ -223,13 +223,16 @@ async def process_ai_request(message: Message, telegram_id: int, text: str, curr
             try: await thinking_msg.delete()
             except: pass
             
-            # 4. Отправляем ответ
+                        # 4. Отправляем ответ (с разбивкой на части, если длинный)
             response_text = ai_data.get("response", "Не удалось получить ответ.")
-            if len(response_text) > 4000:
-                for i in range(0, len(response_text), 4000):
-                    await message.answer(response_text[i:i+4000], parse_mode="Markdown")
-            else:
-                await message.answer(response_text, parse_mode="Markdown")
+            chunks = [response_text[i:i+4000] for i in range(0, len(response_text), 4000)]
+            for chunk in chunks:
+                # Сначала пробуем с HTML (надёжнее для AI-ответов)
+                try:
+                    await message.answer(chunk, parse_mode="HTML")
+                except Exception:
+                    # Если HTML не подошёл — шлём чистым текстом (гарантированная доставка)
+                    await message.answer(chunk)
                 
         except httpx.TimeoutException:
             try: await thinking_msg.delete()
